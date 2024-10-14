@@ -1,0 +1,17 @@
+
+def stateBasedCounter := /.project.crdt.CounterCRDT.stateBasedCounter;
+
+deftype Registry;
+
+// The registry that clients can use to get the CRDT code
+def registry := object: {
+    // Gets the CRDT
+    def get() {
+        stateBasedCounter
+    }
+};
+
+export: registry as: Registry;
+
+network.online();
+

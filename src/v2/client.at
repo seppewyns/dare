@@ -1,0 +1,43 @@
+import /.at.lang.futures;
+import ~.ReplicatedRegistry;
+
+deftype Registry;
+
+def counter;
+def subscription;
+def timeout;
+
+def onDiscovered(registry) {
+    system.println("discovered a registry");
+    // get the CRDT
+    when: registry<-get()@FutureMessage becomes: { |crdt|
+        system.println("received crdt code");
+        subscription.cancel();
+        timeout.cancel();
+
+        if: counter == nil then: {
+            counter := crdt.new();
+
+            // initialize the GUI
+            def gui := jlobby.gui.v0.GUI.new();
+            gui.setHandler(counter);
+
+            // add a listener for when the CRDT state changes
+            counter.wheneverChanged({ |crdt|
+                gui.update(counter.value());
+            });
+
+            ReplicatedRegistry.new(crdt);
+        };
+    };
+};
+
+subscription := when: Registry discovered: &onDiscovered;
+
+timeout := /.at.support.timer.when:elapsed:(/.at.support.timer.seconds(5), {
+    system.println("timeout for main registry elapsed, attempting replicated registry");
+    when: ReplicatedRegistryType discovered: &onDiscovered;
+});
+
+network.online();
+

@@ -1,0 +1,7 @@
+
+def migrate(current, newResponse, oldResponse) {
+    def new := newResponse.object.new();
+    if: current != nil then: { new.state := current.state };
+
+    new;
+}

@@ -1,0 +1,23 @@
+import /.at.lang.futures;
+
+deftype Registry;
+
+when: Registry discovered: { |registry|
+    // get the CRDT
+    when: registry<-get()@FutureMessage becomes: { |crdt|
+        def counter := crdt.new();
+
+        // initialize the GUI
+        def gui := jlobby.gui.v0.GUI.new();
+        gui.setHandler(counter);
+
+        // add a listener for when the CRDT state changes
+        counter.wheneverChanged({ |crdt|
+            gui.update(counter.value());
+         });
+     }
+};
+
+network.online();
+
+

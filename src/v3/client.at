@@ -1,0 +1,57 @@
+import /.at.lang.futures;
+import ~.ReplicatedRegistry;
+
+deftype Registry;
+
+def counter;
+def subscription;
+def timeout;
+def replicatedRegistry;
+def gui;
+
+def receivedResponse;
+
+def onDiscovered(registry) {
+    system.println("discovered a registry");
+    // get the CRDT
+    when: registry<-get()@FutureMessage becomes: { |response|
+        timeout.cancel();
+
+        if: ((receivedResponse == nil).or: { response.version.isNewer(receivedResponse.version) }) then: {
+            system.println("updating crdt");
+            if: counter != nil then: { counter.goOffline() };
+            counter := response.object.new();
+
+            // initialize the GUI
+            if: gui == nil then: { gui := jlobby.gui.v3.GUI.new() };
+            gui.setHandler(counter);
+            // reset the GUI state
+            gui.updateVersion(response.version.toString());
+            gui.update(counter.value());
+
+            // add a listener for when the CRDT state changes
+            counter.wheneverChanged({ |crdt|
+                gui.update(counter.value());
+            });
+
+            // create or update the replicated registry
+            if: replicatedRegistry == nil then: {
+                replicatedRegistry := ReplicatedRegistry.new(response);
+            } else: {
+                replicatedRegistry.update(response);
+            };
+
+            receivedResponse := response;
+        };
+    };
+};
+
+subscription := whenever: Registry discovered: &onDiscovered;
+
+timeout := /.at.support.timer.when:elapsed:(/.at.support.timer.seconds(5), {
+    system.println("timeout for main registry elapsed, attempting replicated registry");
+    when: ReplicatedRegistryType discovered: &onDiscovered;
+});
+
+network.online();
+

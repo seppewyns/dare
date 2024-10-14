@@ -1,0 +1,21 @@
+
+object: {
+    // the type under which the replicated registry is exported
+    deftype ReplicatedRegistryType;
+
+    def ReplicatedRegistry := object: {
+        // the stored crdt code
+        def stored;
+
+        def init(response) {
+            def slf := self;
+            slf.stored := response;
+            // only allow the get() method to be called by other replicas
+            export: (object: { def get() { slf.stored } }) as: ReplicatedRegistryType;
+        };
+
+        def update(response) {
+            self.stored := response;
+        };
+    }
+}

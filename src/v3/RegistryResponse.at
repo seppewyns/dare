@@ -1,0 +1,14 @@
+
+// Represents a response from a registry.
+// Allows the registry to return "metadata" related to the response,
+// which for now is only the semantic version of the returned object.
+isolate: {
+    def version;
+    def object;
+
+    def init(version, object) {
+        self.version := version;
+        self.object := object;
+    }
+}
+

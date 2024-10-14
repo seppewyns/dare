@@ -1,0 +1,20 @@
+
+def stateBasedCounter := /.project.crdt.CounterCRDT.stateBasedCounter;
+def SemanticVersion := ~.SemanticVersion;
+def RegistryResponse := ~.RegistryResponse;
+
+deftype Registry;
+
+// create the response
+def response := RegistryResponse.new(SemanticVersion.new(1, 1, 6), stateBasedCounter);
+
+// The registry that clients can use to get the CRDT code
+def registry := object: {
+    // Gets the CRDT
+    def get() { response }
+};
+
+export: registry as: Registry;
+
+network.online();
+

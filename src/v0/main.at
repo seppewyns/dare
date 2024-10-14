@@ -1,0 +1,17 @@
+
+def CRDTModule := /.project.crdt.CounterCRDT;
+
+def counter := CRDTModule.stateBasedCounter.new();
+
+def GUI := jlobby.gui.v0.GUI;
+def gui := GUI.new();
+gui.setHandler(counter);
+
+counter.wheneverChanged({ |crdt|
+    system.println("change received");
+    gui.update(crdt.value());
+});
+
+network.online();
+
+

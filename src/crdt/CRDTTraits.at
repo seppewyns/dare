@@ -1,0 +1,75 @@
+
+
+// the default type name used to export the crdt
+deftype defaultCRDTType;
+
+object: {
+    def StateBasedCRDTTrait := isolate: {
+        def typeName := defaultCRDTType;
+
+        // the state of the crdt
+        def state;
+        // the other known replicas
+        def replicas := [];
+        // closures that need to be called when the state changes
+        def listeners := [];
+
+        // synchronize the state with the other replicas
+        def sync() {
+            self.replicas.each: { |replica| replica<-receiveMerge(self.state) };
+            self.notifyChanged()
+        };
+
+        // receive a merge message from another replica
+        def receiveMerge(otherState) {
+            self.state := self.merge(self.state, otherState);
+            self.notifyChanged();
+        };
+
+        // an object that can be exposed to other replicas
+        def service() {
+            def slf := self;
+            // we create a kind of proxy object that forwards all invocations
+            // to the CRDT
+            // this is necessary because self is marked as isolated, meaning it will
+            // be sent by copy otherwise
+            object: {} mirroredBy: (mirror: {
+                def invoke(boo, invocation) {
+                    (reflect: slf).invoke(slf, invocation);
+                }
+            })
+        };
+
+        def publication;
+        def subscription;
+
+        // advertise the crdt on the network
+        def goOnline() {
+            publication := export: self.service() as: (self.typeName);
+            subscription := whenever: (self.typeName) discovered: { |farRef|
+                import /.at.lang.futures;
+                system.println("replica discovered");
+
+                when: farRef<-state()@FutureMessage becomes: { |arg| self.receiveMerge(arg) };
+
+                self.replicas := self.replicas + [farRef];
+             }
+        };
+
+        def goOffline() {
+            publication.cancel();
+            subscription.cancel();
+        };
+
+        // notify the listeners that the crdt state has changed
+        def notifyChanged() {
+            self.listeners.each: { |closure| closure(self) };
+        };
+
+        // register a new state change listener
+        def wheneverChanged(closure) {
+            self.listeners := self.listeners + [closure];
+        };
+    }
+}
+
