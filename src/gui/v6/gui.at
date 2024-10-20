@@ -1,0 +1,97 @@
+
+object: {
+    // The GUI part of the application.
+    def GUI := isolate: {
+        // Import Java AWT classes/objects.
+        def Frame := jlobby.java.awt.Frame;
+        def Button := jlobby.java.awt.Button;
+        def GridBagLayout := jlobby.java.awt.GridBagLayout;
+        def GridBagConstraints := jlobby.java.awt.GridBagConstraints;
+        def Insets := jlobby.java.awt.Insets;
+        def Label := jlobby.java.awt.Label;
+
+        // A handler which is used to interact with the CRDT.
+        def handler;
+        // The Java AWT Frame.
+        def frame;
+        // A label in which the current value of the counter is displayed.
+        def currentValueLabel;
+        // A label in which the current version of the counter is displayed.
+        def currentVersionLabel;
+
+        // Initializes the GUI.
+        def init() {
+            // A mirror that only invokes a method if it exists on the object.
+            // Used to implement Java AWT event handlers.
+            def EventHandlerMirror := mirror: {
+                def invoke(slf, invocation) {
+                    def matchingMethods := (reflect: slf).listMethods().filter: { |e| e.name == invocation.selector };
+                    if: matchingMethods.length == 1 then: { super.invoke(slf, invocation) }
+                }
+            };
+
+            // create the frame
+            def frame := Frame.new("State-based CRDT increment only counter");
+            self.frame := frame;
+            frame.addWindowListener(object: {
+                def windowClosing(e) {
+                    frame.dispose();
+                    system.exit();
+                }
+            } mirroredBy: EventHandlerMirror);
+
+            frame.setSize(480, 640);
+            def layout := GridBagLayout.new();
+            def constraints := GridBagConstraints.new();
+            frame.setLayout(layout);
+
+            constraints.fill := GridBagConstraints.HORIZONTAL;
+            constraints.insets := Insets.new(5, 5, 5, 5);
+
+            // add the value label
+            constraints.gridx := 0;
+            constraints.gridy := 0;
+            self.currentValueLabel := Label.new("Current value: 0", Label.CENTER);
+            frame.add(self.currentValueLabel);
+            layout.setConstraints(self.currentValueLabel, constraints);
+
+            // add the increment button
+            constraints.gridy := 1;
+            def button := Button.new("Increment");
+            frame.add(button);
+            layout.setConstraints(button, constraints);
+
+            // add the version label
+            constraints.gridy := 2;
+            self.currentVersionLabel := Label.new("Current version: ----", Label.CENTER);
+            frame.add(self.currentVersionLabel);
+            constraints.gridwidth := GridBagConstraints.REMAINDER;
+            layout.setConstraints(currentVersionLabel, constraints);
+
+            // add the button action listener
+            button.addActionListener(object: {
+                def actionPerformed(e) {
+                    if: handler != nil then: { handler.increment() }
+                }
+            } mirroredBy: EventHandlerMirror);
+
+            frame.setVisible(true);
+        };
+
+        // Closes the GUI.
+        def close() {
+            self.frame.dispose();
+        };
+
+        // Updates the version displayed on the GUI.
+        def updateVersion(version) {
+            self.currentVersionLabel.setText("Current version: " + version);
+        };
+
+        // Updates the value displayed on the GUI.
+        def updateValue(value) {
+            self.currentValueLabel.setText("Current value: " + value);
+        }
+    }
+}
+

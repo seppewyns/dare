@@ -47,7 +47,7 @@ when a new version is released.
 This package extends `v4` to tag messages with the sender's version, so older replicas can handle messages sent from
 replicas with incompatible API versions.
 
-### v6 (planned)
+### v6
 
 This package moves the GUI code into AmbientTalk, so it can be updated dynamically as well.
 
