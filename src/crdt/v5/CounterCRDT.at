@@ -1,0 +1,51 @@
+
+def CRDTTraits := ~.CRDTTraits;
+
+object: {
+    // Based on Lab session code
+    def stateBasedCounter := isolate: {
+        import CRDTTraits.StateBasedCRDTTrait;
+
+        // The id of the counter
+        def myId;
+
+        def init() {
+            // initialize the id and the state, then go online
+            myId := jlobby.java.util.UUID.randomUUID();
+            self.state := jlobby.java.util.HashMap.new();
+            self.goOnline();
+        };
+
+        // Increment the counter
+        def increment() {
+            system.println("incremented!");
+            self.state.put(myId, self.state.getOrDefault(myId, 0) + 1);
+            self.sync();
+        };
+
+        // Get the value of the counter
+        def value() {
+            self.state.values().toArray().inject:into:(0, { |total, next| total + next });
+        };
+
+        // Compare two counter states
+        def compare(X, Y) {
+            // assumes X and Y are of the same size
+            def i := 0;
+            X.find: { |e| i := i + 1; e > Y[i]  }
+        };
+
+        // Merge two counter states
+        def merge(X, Y) {
+            Y.entrySet().toArray().each: { |entry|
+                def key := entry.getKey();
+                def yValue := entry.getValue();
+                def xValue := X.getOrDefault(key, 0);
+                X.put(key, (xValue < yValue).ifTrue: { yValue } ifFalse: { xValue });
+            };
+
+            X
+        }
+    }
+}
+

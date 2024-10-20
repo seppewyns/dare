@@ -1,0 +1,16 @@
+
+object: {
+    // Migrates the state of the CRDT.
+    def migrateState(current, newResponse, oldResponse) {
+        def new := newResponse.object.new();
+        if: current != nil then: { new.state := current.state };
+
+        new;
+    };
+
+    // Migrates a message.
+    def migrateMessage(version, msg) {
+        system.println("[INFO] Migrating message " + msg.selector + " (version " + version.toString() + ")");
+        msg
+    }
+}

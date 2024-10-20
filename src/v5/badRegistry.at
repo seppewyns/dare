@@ -1,0 +1,27 @@
+
+def stateBasedCounter := /.project.crdt.v5.CounterCRDT.stateBasedCounter;
+def SemanticVersion := /.project.v5.SemanticVersion;
+def RegistryResponse := /.project.v5.RegistryResponse;
+def migrateState := ~.migrate.&migrateState;
+def migrateMessage := ~.migrate.&migrateMessage;
+
+deftype Registry;
+
+// create the response
+def response := RegistryResponse.new(SemanticVersion.new(1, 0, 0), stateBasedCounter, migrateState, migrateMessage);
+def MAX_REPONSES := 1;
+def getCount := 0;
+
+// The registry that clients can use to get the CRDT code
+def registry := object: {
+    // Gets the CRDT
+    def get() {
+        getCount := getCount + 1;
+        if: getCount > MAX_REPONSES then: { network.offline() } else: { response };
+    }
+};
+
+export: registry as: Registry;
+
+network.online();
+

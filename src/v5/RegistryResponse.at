@@ -1,0 +1,28 @@
+
+// Represents a response from a registry.
+// Allows the registry to return "metadata" related to the response,
+// which is the version and migrate functions for the state and the message.
+isolate: {
+    def version;
+    def object;
+    def migrateState;
+    def migrateMessage;
+
+    def init(version, object, migrateState, migrateMessage) {
+        self.version := version;
+        self.object := object;
+
+        if: migrateState == nil then: {
+            self.migrateState := script: { |_, newResponse, __| newResponse.object.new() };
+        } else: {
+            self.migrateState := script: migrateState;
+        };
+
+        if: migrateMessage == nil then: {
+            self.migrateMessage := script: { |_, msg| msg };
+        } else: {
+            self.migrateMessage := script: migrateMessage;
+        }
+    }
+}
+

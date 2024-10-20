@@ -42,12 +42,10 @@ This package allows clients to dynamically update when a new version of the CRDT
 This package extends `v3` to migrate the current state of the replica as well, preventing it from being cleared
 when a new version is released.
 
-### v5 (planned)
+### v5
 
-This package extends `v4` to tag messages with the sender's version, so older replicas can (kind of) coexist with
-newer replicas.
-
-> TODO: also include reference to sender in each message so it can act as a replicated registry
+This package extends `v4` to tag messages with the sender's version, so older replicas can handle messages sent from
+replicas with incompatible API versions.
 
 ### v6 (planned)
 
