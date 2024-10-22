@@ -1,0 +1,33 @@
+
+// Represents a response from a registry.
+// Allows the registry to return "metadata" related to the response,
+// which is the version and migrate functions for the state and the message.
+isolate: {
+    def version;
+    def crdt;
+    def gui;
+    def migrate;
+    def signature;
+
+    def init(version, crdt, gui, migrate) {
+        self.version := version;
+        self.crdt := crdt;
+        self.gui := gui;
+        self.migrate := migrate;
+    };
+
+    // Signs the response by encrypting a hash of itself with the private key.
+    def sign() { self.signature := jlobby.v7.RSA.encrypt(hash(self)) };
+    // Verify whether the signature of a response matches the hash.
+    def verify(response) { jlobby.v7.RSA.verify(self.readSlot(response, `signature), self.hash(response)) };
+    // Reads a slot from a response.
+    def readSlot(response, slot) { (reflect: response).grabSlot(slot).apply([], self.&hash.context) };
+
+    // Hashes a response based on the crdt, gui, and migrate objects.
+    def hash(response) {
+        def asCode(slot) { asCode: self.readSlot(response, slot) };
+        def code := asCode(`crdt) + asCode(`gui) + asCode(`migrate);
+        jlobby.v7.SHA256.hash(code);
+    };
+}
+

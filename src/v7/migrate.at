@@ -1,0 +1,18 @@
+
+isolate: {
+    // Migrates the state of the CRDT.
+    def state(current, newResponse, oldResponse) {
+        def new := newResponse.crdt.new();
+        if: current != nil then: { new.state := current.state };
+
+        new;
+    };
+
+    // Migrates a message.
+    def message(version, msg) {
+        system.println("[INFO] Migrating message " + msg.selector + " (version " + version.toString() + ")");
+        msg
+    }
+}
+
+

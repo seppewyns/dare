@@ -51,7 +51,7 @@ replicas with incompatible API versions.
 
 This package moves the GUI code into AmbientTalk, so it can be updated dynamically as well.
 
-### v7 (planned)
+### v7
 
 This package adds code-signing functionality. Every replica will now check whether the provided registry response
 is correctly signed, and will refuse to run the provided code if the response is not correctly signed.

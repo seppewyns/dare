@@ -1,0 +1,138 @@
+import /.at.lang.futures;
+import /.project.v7.ReplicatedRegistry;
+def SemanticVersion := /.project.v5.SemanticVersion;
+def RegistryResponse := /.project.v7.RegistryResponse;
+
+deftype Registry;
+
+def counter;
+def subscription;
+def timeout;
+def replicatedRegistry;
+def gui;
+
+def receivedResponse;
+def queuedMessages := [];
+
+def actor := reflectOnActor();
+
+def mirror := extend: actor with: {
+
+    // the current version of the application
+    def version;
+    // a migrator function that is mapped over messages from older replicas
+    def migrator;
+    // a table of queued messages sent by newer replicas
+    def queuedMessages := [];
+
+    // Applies queued messages from newer replicas.
+    def applyQueuedMessages() {
+        system.println("[UPDATE] Applying messages from queue.");
+        def messages := self.queuedMessages.filter: { |data| data[1].apiIsCompatibleWith(self.version) };
+        self.queuedMessages := self.queuedMessages.filter: { |data| !data[1].apiIsCompatibleWith(self.version) };
+
+        messages.each: { |data|
+            if: data[1].apiIsCompatibleWith(self.version) then: {
+                super^receive(data[2], data[3]);
+            };
+        };
+    };
+
+    // Adds a version tag to every sent message.
+    def createMessage(sel, args, types) {
+        if: self.version != nil then: {
+            types := [self.version.toTypeTag("Client")] + types;
+        };
+
+        super^createMessage(sel, args, types);
+    };
+
+    // Checks the version tag of every received message and takes the appropriate action
+    // if the message was sent by a newer or older version that is not applicable with the current
+    // one on this replica.
+    def receive(rec, msg) {
+        def tags := (reflect: msg).typeTags();
+        def tag := tags.find: { |t| SemanticVersion.isVersionTag(t) };
+
+        if: ((tag != nil).and: { self.version != nil }) then: {
+            def messageVersion := SemanticVersion.fromTypeTag("Client", tags[tag]);
+
+            if: messageVersion.apiIsCompatibleWith(self.version) then: {
+                // just deliver the message if the API is compatible
+                super^receive(rec, msg)
+            } else: {
+                if: messageVersion.isNewer(self.version) then: {
+                    // the message we received is newer
+                    // store the message in a queue somewhere
+                    system.println("[WARNING] Received message from a newer replica, storing in queue.");
+                    self.queuedMessages := [[messageVersion, rec, msg]] + self.queuedMessages;
+                } else: {
+                    // the message we received is older
+                    // run the migrate function first
+                    system.println("[WARNING] Received message from an older replica, applying migrate function.");
+                    super^receive(rec, self.migrator(messageVersion, msg));
+                };
+            };
+        } else: {
+            super^receive(rec, msg)
+        };
+    }
+};
+
+// register the mirror
+actor.becomeMirroredBy: mirror;
+
+def onDiscovered(registry) {
+    system.println("[REGISTRY] Discovered a registry.");
+    // get the CRDT
+    when: registry<-get()@FutureMessage becomes: { |response|
+        timeout.cancel();
+
+        // verify the response
+        if: !RegistryResponse.verify(response) then: {
+            system.println("[REGISTRY] Failed to verify response signature, ignoring.")
+        } else: {
+            if: ((receivedResponse == nil).or: { response.version.isNewer(receivedResponse.version) }) then: {
+                system.println("[UPDATE] Updating application.");
+                if: counter != nil then: { counter.goOffline() };
+
+                counter := response.migrate.state(counter, response, receivedResponse);
+
+                mirror.version := response.version;
+                mirror.migrator := response.migrate.&message;
+                mirror.applyQueuedMessages();
+
+                // initialize the GUI
+                if: gui != nil then: { gui.close() };
+                gui := response.gui.new();
+                gui.handler := counter;
+                gui.updateVersion(response.version.toString());
+                gui.updateValue(counter.value());
+
+                // add a listener for when the CRDT state changes
+                counter.wheneverChanged({ |crdt|
+                    gui.updateValue(counter.value());
+                });
+
+                // create or update the replicated registry
+                if: replicatedRegistry == nil then: {
+                    replicatedRegistry := ReplicatedRegistry.new(response);
+                } else: {
+                    replicatedRegistry.update(response);
+                };
+
+                receivedResponse := response;
+            };
+        };
+    };
+};
+
+subscription := whenever: Registry discovered: &onDiscovered;
+
+timeout := /.at.support.timer.when:elapsed:(/.at.support.timer.seconds(5), {
+    system.println("timeout for main registry elapsed, attempting replicated registry");
+    when: ReplicatedRegistryType discovered: &onDiscovered;
+});
+
+network.online();
+
