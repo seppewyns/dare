@@ -78,14 +78,14 @@ object: {
             frame.setVisible(true);
         };
 
-        // Closes the GUI.
-        def close() {
-            self.frame.dispose();
-        };
-
         // Updates the version displayed on the GUI.
         def updateVersion(version) {
             self.currentVersionLabel.setText("Current version: " + version);
+        };
+
+        // Closes the GUI.
+        def close() {
+            self.frame.dispose();
         };
 
         // Updates the value displayed on the GUI.
